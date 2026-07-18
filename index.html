@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Poetry Whisper：在格律与词义之间，安静地写一首诗。" />
+    <title>Poetry Whisper · 诗词格律助手</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Source+Han+Serif+SC&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="paper-grain"></div>
+    <main class="page-shell">
+      <header class="hero">
+        <a class="brand" href="./" aria-label="Poetry Whisper 首页"><span>PW</span> Poetry Whisper</a>
+        <div class="hero-copy">
+          <p class="eyebrow">古典诗词写作伴读</p>
+          <h1>让每个字，<em>各安其声。</em></h1>
+          <p>选择体式，逐字落笔。平仄、字数与常见拗格会在行间即时提示；右侧同时给出可替换的古雅词语。</p>
+        </div>
+        <div class="hero-note">依《平水韵》取声<br />可手动覆写多音字</div>
+      </header>
+
+      <section class="control-panel" aria-label="格律选择">
+        <label class="field"><span>体裁</span><select id="familySelect"><option value="shi">近体诗</option><option value="ci">宋词</option></select></label>
+        <label class="field"><span id="formLabel">诗体</span><select id="formSelect"></select></label>
+        <label class="field" id="variantField"><span>起式</span><select id="variantSelect"></select></label>
+        <button id="clearBtn" class="quiet-button" type="button">清空此稿</button>
+      </section>
+
+      <section class="workspace">
+        <article class="editor-card">
+          <div class="editor-topline">
+            <div><p class="section-kicker">逐字填空</p><h2 id="formTitle">五言绝句</h2></div>
+            <div id="meterStatus" class="meter-status" aria-live="polite">等待落笔</div>
+          </div>
+          <p id="formDescription" class="form-description"></p>
+          <div id="poemEditor" class="poem-editor" aria-label="诗词逐字编辑器"></div>
+          <div class="legend">
+            <span><i class="legend-ok"></i>合谱</span><span><i class="legend-bad"></i>不合</span><span><i class="legend-pending"></i>待判 / 可通</span><span><b>平</b>平声 <b>仄</b>仄声 <b>△</b>可平可仄</span>
+          </div>
+        </article>
+
+        <aside class="assist-card">
+          <p class="section-kicker">字词斟酌</p>
+          <h2>同义雅词</h2>
+          <p id="assistHint" class="assist-hint">点选一个字位，或在诗句中输入词语。</p>
+          <div id="selectedSlot" class="selected-slot">尚未选定字位</div>
+          <div id="suggestions" class="suggestions"></div>
+          <div class="assist-footer">带“合谱”标记的词可直接替换当前字位。词义相近不等于语境必然适切，仍请自行斟酌。</div>
+        </aside>
+      </section>
+
+      <section class="rules-card">
+        <div><p class="section-kicker">判定说明</p><h2>不是简单的“一三五不论”</h2></div>
+        <div class="rule-grid">
+          <p><b>以中古韵书为准。</b>本工具优先使用平水韵的平、上、去、入四声；入声一律按仄。因此普通话读作一、二声的字，仍可能是古仄。</p>
+          <p><b>可通不等于随意。</b>首、三、五位置常有弹性，但平脚句须避孤平；尾部三平会单列为严重提示。</p>
+          <p><b>拗救单独识别。</b>工具会提示常见的孤平自救与对句救；它不把所有唐人变格一概判错。</p>
+          <p><b>词谱须依调分辨。</b>同一词牌常有正体、变体及换韵体；当前页会明确显示所用谱式，避免混称“唯一格式”。</p>
+        </div>
+      </section>
+    </main>
+    <footer>Poetry Whisper · 本地运行，无需上传诗稿 · 格律结论供创作辅助，定稿请复核韵书与具体词谱。</footer>
+    <script src="./data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
