@@ -25,8 +25,10 @@
 
       <section class="control-panel" aria-label="格律选择">
         <label class="field"><span>体裁</span><select id="familySelect"><option value="shi">近体诗</option><option value="ci">宋词</option></select></label>
+        <label class="field ci-search-field" id="ciSearchField" hidden><span>搜索词牌</span><input id="ciSearch" type="search" placeholder="如：水调歌头、念奴娇" autocomplete="off" /></label>
         <label class="field"><span id="formLabel">诗体</span><select id="formSelect"></select></label>
         <label class="field" id="variantField"><span>起式</span><select id="variantSelect"></select></label>
+        <button id="pasteBtn" class="quiet-button" type="button">一键粘贴</button>
         <button id="clearBtn" class="quiet-button" type="button">清空此稿</button>
       </section>
 
@@ -49,7 +51,7 @@
           <p id="assistHint" class="assist-hint">点选一个字位，或在诗句中输入词语。</p>
           <div id="selectedSlot" class="selected-slot">尚未选定字位</div>
           <div id="suggestions" class="suggestions"></div>
-          <div class="assist-footer">带“合谱”标记的词可直接替换当前字位。词义相近不等于语境必然适切，仍请自行斟酌。</div>
+          <div class="assist-footer">带“合谱”标记的词可直接替换当前单字或词组。词义相近不等于语境必然适切，仍请自行斟酌。</div>
         </aside>
       </section>
 

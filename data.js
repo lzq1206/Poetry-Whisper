@@ -3,10 +3,10 @@ const POETRY_DATA = {
   forms: {
     shi: [
       { id: 'wujue', name: '唐诗 · 五言绝句', description: '四句五言；提供平起/仄起与首句入韵两种选择。', variants: [
-        ['平起首句入韵', ['PPZZP', 'ZZZPP', 'ZZPPZ', 'PPZZP']],
-        ['平起首句不入韵', ['PPPZZ', 'ZZZPP', 'ZZPPZ', 'PPZZP']],
-        ['仄起首句入韵', ['ZZPPP', 'PPZZP', 'PPZZZ', 'ZZPPP']],
-        ['仄起首句不入韵', ['ZZPPZ', 'PPZZP', 'PPPZZ', 'ZZZPP']]
+        ['平起首句入韵', ['PPZZP', 'ZZZPP', 'AZPPZ', 'PPZZP']],
+        ['平起首句不入韵', ['APPZZ', 'ZZZPP', 'AZPPZ', 'PPZZP']],
+        ['仄起首句入韵', ['AZZPP', 'PPZZP', 'APPZZ', 'ZZZPP']],
+        ['仄起首句不入韵', ['AZPPZ', 'PPZZP', 'APPZZ', 'ZZZPP']]
       ]},
       { id: 'qijue', name: '唐诗 · 七言绝句', description: '四句七言；依近体诗常用正格展示。', variants: [
         ['平起首句入韵', ['PPZZZPP', 'ZZPPZZP', 'ZZPPPZZ', 'PPZZZPP']],
@@ -15,10 +15,10 @@ const POETRY_DATA = {
         ['仄起首句不入韵', ['ZZPPPZZ', 'PPZZZPP', 'PPZZPPZ', 'ZZPPZZP']]
       ]},
       { id: 'wulv', name: '唐诗 · 五言律诗', description: '八句五言；颔联、颈联通常宜对仗（语义对仗仍需作者判断）。', variants: [
-        ['平起首句入韵', ['PPZZP','ZZZPP','ZZPPZ','PPZZP','PPZZP','ZZZPP','ZZPPZ','PPZZP']],
-        ['平起首句不入韵', ['PPPZZ','ZZZPP','ZZPPZ','PPZZP','PPZZP','ZZZPP','ZZPPZ','PPZZP']],
-        ['仄起首句入韵', ['ZZPPP','PPZZP','PPZZZ','ZZPPP','ZZPPP','PPZZP','PPZZZ','ZZPPP']],
-        ['仄起首句不入韵', ['ZZPPZ','PPZZP','PPPZZ','ZZZPP','ZZPPZ','PPZZP','PPPZZ','ZZZPP']]
+        ['平起首句入韵', ['PPZZP','ZZZPP','AZPPZ','PPZZP','PPZZP','ZZZPP','AZPPZ','PPZZP']],
+        ['平起首句不入韵', ['APPZZ','ZZZPP','AZPPZ','PPZZP','APPZZ','ZZZPP','AZPPZ','PPZZP']],
+        ['仄起首句入韵', ['AZZPP','PPZZP','APPZZ','ZZZPP','AZZPP','PPZZP','APPZZ','ZZZPP']],
+        ['仄起首句不入韵', ['AZPPZ','PPZZP','APPZZ','ZZZPP','AZPPZ','PPZZP','APPZZ','ZZZPP']]
       ]},
       { id: 'qilv', name: '唐诗 · 七言律诗', description: '八句七言；首联可入韵，颔联与颈联通常要求对仗。', variants: [
         ['平起首句入韵', ['PPZZZPP','ZZPPZZP','ZZPPPZZ','PPZZZPP','PPZZZPP','ZZPPZZP','ZZPPPZZ','PPZZZPP']],

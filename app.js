@@ -4,6 +4,7 @@
   const state = { family: 'shi', formId: 'wujue', variant: 0, text: [], selected: null, overrides: {} };
   const $ = (id) => document.getElementById(id);
   const familySelect = $('familySelect'), formSelect = $('formSelect'), variantSelect = $('variantSelect');
+  const ciSearch = $('ciSearch'), ciSearchField = $('ciSearchField');
 
   function form() { return forms[state.family].find((item) => item.id === state.formId); }
   function pattern() { return form().variants[state.variant][1]; }
@@ -63,7 +64,10 @@
     variantSelect.value = state.variant;
   }
   function renderForms() {
-    formSelect.innerHTML = forms[state.family].map((item) => `<option value="${item.id}">${item.name}</option>`).join('');
+    const query = state.family === 'ci' ? ciSearch.value.trim().toLowerCase() : '';
+    const candidates = query ? forms.ci.filter((item) => (item.searchText || item.name).includes(query)) : forms[state.family];
+    if (!candidates.some((item) => item.id === state.formId)) { state.formId = candidates[0]?.id || forms[state.family][0].id; state.variant = 0; }
+    formSelect.innerHTML = candidates.length ? candidates.map((item) => `<option value="${item.id}">${item.name}</option>`).join('') : '<option>未找到相符词牌</option>';
     formSelect.value = state.formId; variants();
   }
   function focus(line, slot) { requestAnimationFrame(() => document.querySelector(`.char-input[data-key="${line}-${slot}"]`)?.focus()); }
@@ -96,8 +100,11 @@
         const rhyme = isRhymeSlot(lineIndex, slot) ? ' ·韵' : '';
         el.innerHTML = `<input class="char-input" data-key="${key}" maxlength="1" autocomplete="off" inputmode="text" aria-label="第${lineIndex + 1}句第${slot + 1}字，要求${wanted === 'A' ? '可平可仄' : wanted === 'P' ? '平声' : '仄声'}" value="${char}" /><span class="tone-hint">${char ? displayTone(tone) : wanted === 'A' ? '△' : wanted}${rhyme}</span>${tone.length > 1 ? '<button type="button" title="切换此字读音">切</button>' : ''}`;
         el.addEventListener('click', (event) => { if (!event.target.matches('button')) selectSlot(lineIndex, slot); });
-        const input = el.querySelector('input');
-        input.addEventListener('input', (event) => inputAt(lineIndex, slot, event.target.value));
+        const input = el.querySelector('input'); let composing = false, justComposed = false;
+        // Never re-render while an IME is composing, otherwise candidate selection is cancelled.
+        input.addEventListener('compositionstart', () => { composing = true; });
+        input.addEventListener('compositionend', (event) => { composing = false; justComposed = true; inputAt(lineIndex, slot, event.target.value); });
+        input.addEventListener('input', (event) => { if (justComposed) { justComposed = false; return; } if (!composing && !event.isComposing) inputAt(lineIndex, slot, event.target.value); });
         input.addEventListener('paste', (event) => { event.preventDefault(); inputAt(lineIndex, slot, event.clipboardData.getData('text')); });
         input.addEventListener('keydown', (event) => { if (event.key === 'Backspace' && !input.value) { const [l, s] = nextSlot(lineIndex, slot, -1); state.text[l][s] = ''; renderEditor(); focus(l, s); } if (event.key === 'ArrowLeft') { event.preventDefault(); const [l,s] = nextSlot(lineIndex, slot, -1); focus(l,s); } if (event.key === 'ArrowRight') { event.preventDefault(); const [l,s] = nextSlot(lineIndex, slot, 1); focus(l,s); } });
         el.querySelector('button')?.addEventListener('click', (event) => {
@@ -115,12 +122,30 @@
   }
   function suggestionTerms() {
     const selected = state.selected; if (!selected) return [];
-    const current = joinedLine(selected.line); let matches = [];
-    Object.keys(synonyms).sort((a,b) => b.length-a.length).forEach((phrase) => { if (current.includes(phrase)) matches.push(...synonyms[phrase]); });
+    const current = joinedLine(selected.line); const matches = [];
+    Object.keys(synonyms).sort((a,b) => b.length-a.length).forEach((source) => {
+      let start = current.indexOf(source);
+      while (start !== -1) {
+        const end = start + [...source].length;
+        if (selected.slot >= start && selected.slot < end) synonyms[source]
+          .filter((term) => [...term].length === [...source].length)
+          .forEach((term) => matches.push({ term, start, source }));
+        start = current.indexOf(source, start + 1);
+      }
+    });
     const char = state.text[selected.line]?.[selected.slot];
-    if (char) matches.push(...(synonyms[char] || []));
-    if (!matches.length) matches = ['山','水','云','月','风','花','春','秋','清','远'];
-    return [...new Set(matches)].filter((x) => [...x].length === 1).slice(0, 18);
+    if (char && synonyms[char]) synonyms[char].forEach((term) => matches.push({ term, start: selected.slot, source: char }));
+    if (!matches.length) ['山','水','云','月','风','花','春','秋','清','远'].forEach((term) => matches.push({ term, start: selected.slot, source: char || '' }));
+    return matches.filter((item, index, list) => list.findIndex((other) => other.term === item.term && other.start === item.start) === index).slice(0, 20);
+  }
+  function candidateFits(term, line, start) {
+    return [...term].every((char, offset) => isFit(toneOf(char, `${line}-${start + offset}`), expected(line, start + offset)));
+  }
+  function replaceRange(line, start, source, term) {
+    const sourceLength = [...source].length, chars = [...term];
+    if (chars.length !== sourceLength || start + chars.length > pattern()[line].length) return;
+    chars.forEach((char, offset) => { state.text[line][start + offset] = char; });
+    renderEditor(); focus(line, start);
   }
   function renderSuggestions() {
     const target = $('suggestions'), label = $('selectedSlot');
@@ -128,22 +153,35 @@
     const { line, slot } = state.selected, want = expected(line, slot), key = `${line}-${slot}`;
     label.textContent = `第 ${line + 1} 句 · 第 ${slot + 1} 字 · 要求 ${want === 'A' ? '可平可仄' : want === 'P' ? '平声' : '仄声'}`;
     target.innerHTML = '';
-    suggestionTerms().forEach((word) => {
-      const tone = toneOf(word, key), fit = isFit(tone, want);
+    suggestionTerms().forEach(({ term, start, source }) => {
+      const tone = [...term].map((char, offset) => displayTone(toneOf(char, `${line}-${start + offset}`))).join('·');
+      const fit = candidateFits(term, line, start);
       const button = document.createElement('button'); button.type = 'button'; button.className = `suggestion ${fit ? 'fit' : 'no-fit'}`;
-      button.innerHTML = `${word}<small>${displayTone(tone)}${fit ? ' · 合谱' : ''}</small>`;
-      button.addEventListener('click', () => { state.text[line][slot] = word; renderEditor(); focus(line, slot); }); target.appendChild(button);
+      button.innerHTML = `${term}<small>${tone}${fit ? ' · 合谱' : ''}</small>`;
+      button.addEventListener('click', () => replaceRange(line, start, source, term)); target.appendChild(button);
     });
   }
   function resetText() { state.text = pattern().map((line) => Array(line.length).fill('')); state.selected = null; state.overrides = {}; renderEditor(); }
-  familySelect.addEventListener('change', () => { state.family = familySelect.value; state.formId = forms[state.family][0].id; state.variant = 0; renderForms(); resetText(); });
+  async function pasteWholePoem() {
+    try {
+      const clipboard = await navigator.clipboard.readText();
+      inputAt(0, 0, clipboard);
+      $('meterStatus').textContent = '已从剪贴板导入'; $('meterStatus').className = 'meter-status good';
+    } catch (error) {
+      $('meterStatus').textContent = '无法读取剪贴板，请在字位中直接粘贴'; $('meterStatus').className = 'meter-status warn';
+    }
+  }
+  familySelect.addEventListener('change', () => { state.family = familySelect.value; ciSearchField.hidden = state.family !== 'ci'; $('formLabel').textContent = state.family === 'ci' ? '词牌列表' : '诗体'; state.formId = forms[state.family][0].id; state.variant = 0; renderForms(); resetText(); });
+  ciSearch.addEventListener('input', () => { if (state.family === 'ci') { renderForms(); resetText(); } });
   formSelect.addEventListener('change', () => { state.formId = formSelect.value; state.variant = 0; variants(); resetText(); });
   variantSelect.addEventListener('change', () => { state.variant = Number(variantSelect.value); resetText(); });
+  $('pasteBtn').addEventListener('click', pasteWholePoem);
   $('clearBtn').addEventListener('click', resetText);
   function applyCiCatalog(catalog) {
     forms.ci = catalog.map((entry) => ({
       id: entry.id,
       name: entry.name,
+      searchText: entry.aliases.join(' ').toLowerCase(),
       description: `${entry.type}；含 ${entry.variants.length} 个已载入谱式。别名：${entry.aliases.join('、')}。`,
       variants: entry.variants.map((variant) => [variant.label, variant.lines]),
       rhymePositions: entry.variants.map((variant) => variant.rhyme_pos),
@@ -152,11 +190,12 @@
   }
   async function loadFullData() {
     try {
-      const [catalog, tones] = await Promise.all([
+      const [catalog, tones, classicalSynonyms] = await Promise.all([
         fetch('./data/ci-catalog.json').then((response) => response.ok ? response.json() : Promise.reject(response.status)),
         fetch('./data/pingshui-tone.json').then((response) => response.ok ? response.json() : Promise.reject(response.status)),
+        fetch('./data/classical-synonyms.json').then((response) => response.ok ? response.json() : Promise.reject(response.status)),
       ]);
-      Object.assign(fullToneMap, tones); applyCiCatalog(catalog); renderEditor();
+      Object.assign(fullToneMap, tones); Object.assign(synonyms, classicalSynonyms); applyCiCatalog(catalog); renderEditor();
     } catch (error) { console.warn('Full ci / tone data unavailable; using built-in starter data.', error); }
   }
   function init() { renderForms(); $('formTitle').textContent = form().name; $('formDescription').textContent = form().description; const originalRender = renderEditor; renderEditor = function(){ $('formTitle').textContent = form().name; $('formDescription').textContent = form().description; originalRender(); }; resetText(); loadFullData(); }
