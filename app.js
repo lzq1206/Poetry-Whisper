@@ -1,6 +1,7 @@
 (() => {
   const { forms, toneMap, ancientOblique, synonyms } = POETRY_DATA;
   const fullToneMap = {};
+  const EXPANDED_SYNONYM_URL = 'https://raw.githubusercontent.com/jaaack-wang/Chinese-Synonyms/main/synonyms.json';
   const state = { family: 'shi', formId: 'wujue', variant: 0, text: [], selected: null, overrides: {} };
   const $ = (id) => document.getElementById(id);
   const familySelect = $('familySelect'), formSelect = $('formSelect'), variantSelect = $('variantSelect');
@@ -10,7 +11,11 @@
   function pattern() { return form().variants[state.variant][1]; }
   function expected(line, slot) { return pattern()[line][slot]; }
   function absoluteSlot(line, slot) { return pattern().slice(0, line).reduce((sum, rule) => sum + rule.length, 0) + slot; }
-  function isRhymeSlot(line, slot) { return Boolean(form().rhymePositions?.[state.variant]?.includes(absoluteSlot(line, slot))); }
+  function isRhymeSlot(line, slot) {
+    if (form().rhymePositions?.[state.variant]) return form().rhymePositions[state.variant].includes(absoluteSlot(line, slot));
+    // Regulated shi: every 平收句 shown by a supplied standard pattern is a rhyme line.
+    return slot === pattern()[line].length - 1 && expected(line, slot) === 'P';
+  }
   function toneOf(char, key) {
     if (!char) return '';
     if (state.overrides[key]) return state.overrides[key];
@@ -26,22 +31,31 @@
     if (chars.length !== rule.length || chars.some((x) => !x)) return false;
     const actual = chars.map((ch, i) => toneOf(ch, `${lineIndex}-${i}`));
     if (actual.some((x) => x.length !== 1)) return false;
-    // 常见“孤平拗救”：平平仄仄平可作仄平平仄平；七言取其后五字。
-    return rule.slice(-5) === 'PPZZP' && actual.slice(-5).join('') === 'ZPPZP';
+    // 常见“孤平拗救”：平平(仄)仄平可作仄平平仄平；七言取其后五字。
+    return rule.slice(-5) === 'PPAZP' && actual.slice(-5).join('') === 'ZPPZP';
   }
   function checkLine(lineIndex) {
     const chars = state.text[lineIndex] || [], rule = pattern()[lineIndex];
     const full = chars.length === rule.length && chars.every(Boolean);
     const values = chars.map((ch, i) => toneOf(ch, `${lineIndex}-${i}`));
     const wrong = values.reduce((n, tone, i) => n + (tone && !isFit(tone, rule[i]) ? 1 : 0), 0);
-    const unknown = values.filter((tone) => tone && !tone).length;
+    const unknown = values.filter((tone) => !tone).length;
     const tail = full ? values.slice(-3) : [];
-    return { full, wrong, unknown, rescue: isSelfRescue(lineIndex), triplePing: tail.length === 3 && tail.every((x) => x === 'P'), values };
+    const rescue = isSelfRescue(lineIndex);
+    const lastFive = full ? values.slice(-5) : [];
+    // In 平平(仄)仄平 / 仄仄平平(仄)仄平, leaving only one non-rhyme 平 is 孤平.
+    const lonePing = !rescue && rule.slice(-5) === 'PPAZP' && lastFive.filter((tone) => tone === 'P').length === 2;
+    // The third-from-last character of 仄仄仄平平 (and its 7-character counterpart) cannot become 平.
+    const triplePing = tail.length === 3 && tail.every((tone) => tone === 'P');
+    return { full, wrong, unknown, rescue, lonePing, triplePing, values };
   }
   function charStatus(line, slot) {
     const char = (state.text[line] || [])[slot] || '', tone = toneOf(char, `${line}-${slot}`), wanted = expected(line, slot);
     if (!char) return 'pending';
     if (!tone) return 'unknown';
+    const check = checkLine(line);
+    if (check.lonePing && slot === pattern()[line].length - 5) return 'bad';
+    if (check.triplePing && slot === pattern()[line].length - 3) return 'bad';
     if (isFit(tone, wanted)) return 'ok';
     return 'bad';
   }
@@ -51,10 +65,11 @@
     const unknown = checks.reduce((n, x) => n + x.values.filter((v) => !v).length, 0);
     const wrong = checks.reduce((n, x) => n + x.wrong, 0);
     const triple = checks.filter((x) => x.triplePing).length;
+    const lone = checks.filter((x) => x.lonePing).length;
     const rescue = checks.filter((x) => x.rescue).length;
     const node = $('meterStatus'); node.className = 'meter-status';
     if (!filled) node.textContent = '等待落笔';
-    else if (wrong && !rescue) { node.textContent = `${wrong} 处待斟酌${triple ? ` · ${triple} 处三平尾` : ''}`; node.classList.add('warn'); }
+    else if (wrong || lone || triple) { node.textContent = `${wrong + lone + triple} 处待斟酌${lone ? ` · ${lone} 处孤平` : ''}${triple ? ` · ${triple} 处三平调` : ''}`; node.classList.add('warn'); }
     else if (unknown) { node.textContent = `${unknown} 字待查韵`; node.classList.add('warn'); }
     else { node.textContent = `已填 ${filled}/${pattern().length} 句${rescue ? ' · 含拗救' : ' · 合谱'}`; node.classList.add('good'); }
   }
@@ -188,6 +203,21 @@
     }));
     if (state.family === 'ci') { state.formId = forms.ci[0].id; state.variant = 0; renderForms(); resetText(); }
   }
+  async function loadExpandedSynonyms() {
+    try {
+      const response = await fetch(EXPANDED_SYNONYM_URL);
+      if (!response.ok) throw new Error(`upstream ${response.status}`);
+      const expanded = await response.json();
+      Object.entries(expanded).forEach(([word, terms]) => {
+        if (!Array.isArray(terms)) return;
+        synonyms[word] = [...new Set([...(synonyms[word] || []), ...terms])];
+      });
+      $('assistHint').textContent = '本地古雅词库与扩展近义词库已加载；优先显示等长可替换候选。';
+      renderSuggestions();
+    } catch (error) {
+      console.warn('Expanded synonym source unavailable; using local classical lexicon.', error);
+    }
+  }
   async function loadFullData() {
     try {
       const [catalog, tones, classicalSynonyms] = await Promise.all([
@@ -195,7 +225,7 @@
         fetch('./data/pingshui-tone.json').then((response) => response.ok ? response.json() : Promise.reject(response.status)),
         fetch('./data/classical-synonyms.json').then((response) => response.ok ? response.json() : Promise.reject(response.status)),
       ]);
-      Object.assign(fullToneMap, tones); Object.assign(synonyms, classicalSynonyms); applyCiCatalog(catalog); renderEditor();
+      Object.assign(fullToneMap, tones); Object.assign(synonyms, classicalSynonyms); applyCiCatalog(catalog); renderEditor(); loadExpandedSynonyms();
     } catch (error) { console.warn('Full ci / tone data unavailable; using built-in starter data.', error); }
   }
   function init() { renderForms(); $('formTitle').textContent = form().name; $('formDescription').textContent = form().description; const originalRender = renderEditor; renderEditor = function(){ $('formTitle').textContent = form().name; $('formDescription').textContent = form().description; originalRender(); }; resetText(); loadFullData(); }

@@ -16,7 +16,7 @@
 
 平仄和词谱存在异读、通押、正变体与具体作品传统。本网站只把明确载入的谱式当作判定依据，未知字不会假装给出确定结论。全词牌与平水韵数据来自 MIT 许可的 Couyun，并在本地保留为可审计的浏览器数据包；来源与许可见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
 
-`data/classical-synonyms.json` 是站点加载的本地古雅同义词库，按词组长度匹配与替换；可直接扩充条目而不改动界面逻辑。
+`data/classical-synonyms.json` 是站点加载的本地古雅同义词库，按词组长度匹配与替换；可直接扩充条目而不改动界面逻辑。联网时，浏览器会直接请求 Chinese-Synonyms 上游词库补充候选（不将该无明确再分发许可的数据镜像进仓库）；许可取舍见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
 
 ## 本地预览
 
