@@ -1,5 +1,6 @@
 (() => {
   const { forms, toneMap, ancientOblique, synonyms } = POETRY_DATA;
+  const fullToneMap = {};
   const state = { family: 'shi', formId: 'wujue', variant: 0, text: [], selected: null, overrides: {} };
   const $ = (id) => document.getElementById(id);
   const familySelect = $('familySelect'), formSelect = $('formSelect'), variantSelect = $('variantSelect');
@@ -7,10 +8,12 @@
   function form() { return forms[state.family].find((item) => item.id === state.formId); }
   function pattern() { return form().variants[state.variant][1]; }
   function expected(line, slot) { return pattern()[line][slot]; }
+  function absoluteSlot(line, slot) { return pattern().slice(0, line).reduce((sum, rule) => sum + rule.length, 0) + slot; }
+  function isRhymeSlot(line, slot) { return Boolean(form().rhymePositions?.[state.variant]?.includes(absoluteSlot(line, slot))); }
   function toneOf(char, key) {
     if (!char) return '';
     if (state.overrides[key]) return state.overrides[key];
-    const base = toneMap[char] || '';
+    const base = fullToneMap[char] || toneMap[char] || '';
     if (ancientOblique.has(char) && base === 'P') return 'Z';
     return base;
   }
@@ -90,13 +93,20 @@
       [...line].forEach((wanted, slot) => {
         const key = `${lineIndex}-${slot}`, char = state.text[lineIndex][slot] || '', tone = toneOf(char, key), status = charStatus(lineIndex, slot);
         const el = document.createElement('label'); el.className = `char-slot ${status}${state.selected?.line === lineIndex && state.selected?.slot === slot ? ' selected' : ''}${tone.length > 1 ? ' ambiguous' : ''}`; el.dataset.key = key;
-        el.innerHTML = `<input class="char-input" data-key="${key}" maxlength="1" autocomplete="off" inputmode="text" aria-label="第${lineIndex + 1}句第${slot + 1}字，要求${wanted === 'A' ? '可平可仄' : wanted === 'P' ? '平声' : '仄声'}" value="${char}" /><span class="tone-hint">${char ? displayTone(tone) : wanted === 'A' ? '△' : wanted}</span>${tone.length > 1 ? '<button type="button" title="切换此字读音">切</button>' : ''}`;
+        const rhyme = isRhymeSlot(lineIndex, slot) ? ' ·韵' : '';
+        el.innerHTML = `<input class="char-input" data-key="${key}" maxlength="1" autocomplete="off" inputmode="text" aria-label="第${lineIndex + 1}句第${slot + 1}字，要求${wanted === 'A' ? '可平可仄' : wanted === 'P' ? '平声' : '仄声'}" value="${char}" /><span class="tone-hint">${char ? displayTone(tone) : wanted === 'A' ? '△' : wanted}${rhyme}</span>${tone.length > 1 ? '<button type="button" title="切换此字读音">切</button>' : ''}`;
         el.addEventListener('click', (event) => { if (!event.target.matches('button')) selectSlot(lineIndex, slot); });
         const input = el.querySelector('input');
         input.addEventListener('input', (event) => inputAt(lineIndex, slot, event.target.value));
         input.addEventListener('paste', (event) => { event.preventDefault(); inputAt(lineIndex, slot, event.clipboardData.getData('text')); });
         input.addEventListener('keydown', (event) => { if (event.key === 'Backspace' && !input.value) { const [l, s] = nextSlot(lineIndex, slot, -1); state.text[l][s] = ''; renderEditor(); focus(l, s); } if (event.key === 'ArrowLeft') { event.preventDefault(); const [l,s] = nextSlot(lineIndex, slot, -1); focus(l,s); } if (event.key === 'ArrowRight') { event.preventDefault(); const [l,s] = nextSlot(lineIndex, slot, 1); focus(l,s); } });
-        el.querySelector('button')?.addEventListener('click', (event) => { event.preventDefault(); state.overrides[key] = tone === 'P/Z' ? 'Z/P' : tone === 'Z/P' ? 'P' : 'Z'; renderEditor(); focus(lineIndex, slot); });
+        el.querySelector('button')?.addEventListener('click', (event) => {
+          event.preventDefault();
+          const readings = (fullToneMap[char] || toneMap[char] || tone).split('/');
+          const now = state.overrides[key] || readings[0];
+          state.overrides[key] = readings[(readings.indexOf(now) + 1) % readings.length];
+          renderEditor(); focus(lineIndex, slot);
+        });
         slots.appendChild(el);
       });
       root.appendChild(row);
@@ -130,6 +140,25 @@
   formSelect.addEventListener('change', () => { state.formId = formSelect.value; state.variant = 0; variants(); resetText(); });
   variantSelect.addEventListener('change', () => { state.variant = Number(variantSelect.value); resetText(); });
   $('clearBtn').addEventListener('click', resetText);
-  function init() { renderForms(); $('formTitle').textContent = form().name; $('formDescription').textContent = form().description; const originalRender = renderEditor; renderEditor = function(){ $('formTitle').textContent = form().name; $('formDescription').textContent = form().description; originalRender(); }; resetText(); }
+  function applyCiCatalog(catalog) {
+    forms.ci = catalog.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      description: `${entry.type}；含 ${entry.variants.length} 个已载入谱式。别名：${entry.aliases.join('、')}。`,
+      variants: entry.variants.map((variant) => [variant.label, variant.lines]),
+      rhymePositions: entry.variants.map((variant) => variant.rhyme_pos),
+    }));
+    if (state.family === 'ci') { state.formId = forms.ci[0].id; state.variant = 0; renderForms(); resetText(); }
+  }
+  async function loadFullData() {
+    try {
+      const [catalog, tones] = await Promise.all([
+        fetch('./data/ci-catalog.json').then((response) => response.ok ? response.json() : Promise.reject(response.status)),
+        fetch('./data/pingshui-tone.json').then((response) => response.ok ? response.json() : Promise.reject(response.status)),
+      ]);
+      Object.assign(fullToneMap, tones); applyCiCatalog(catalog); renderEditor();
+    } catch (error) { console.warn('Full ci / tone data unavailable; using built-in starter data.', error); }
+  }
+  function init() { renderForms(); $('formTitle').textContent = form().name; $('formDescription').textContent = form().description; const originalRender = renderEditor; renderEditor = function(){ $('formTitle').textContent = form().name; $('formDescription').textContent = form().description; originalRender(); }; resetText(); loadFullData(); }
   init();
 })();
