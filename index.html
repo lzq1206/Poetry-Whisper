@@ -18,7 +18,7 @@
         <div class="hero-copy">
           <p class="eyebrow">古典诗词写作伴读</p>
           <h1>让每个字，<em>各安其声。</em></h1>
-          <p>选择体式，逐字落笔。平仄、字数与常见拗格会在行间即时提示；右侧同时给出可替换的古雅词语。</p>
+          <p>选择体式，逐字落笔。平仄、字数与常见拗格会在行间即时提示；右侧同时提供万条古典同义雅词与按谱筛选。</p>
         </div>
         <div class="hero-note">依《平水韵》取声<br />可手动覆写多音字</div>
       </header>
@@ -45,13 +45,31 @@
           </div>
         </article>
 
-        <aside class="assist-card">
-          <p class="section-kicker">字词斟酌</p>
-          <h2>同义雅词</h2>
-          <p id="assistHint" class="assist-hint">点选一个字位，或在诗句中输入词语。</p>
+        <aside class="assist-card" aria-label="同义雅词助手">
+          <div class="assist-header">
+            <div>
+              <p class="section-kicker">字词斟酌</p>
+              <h2>同义雅词</h2>
+            </div>
+            <span id="lexiconStats" class="lexicon-badge">雅词库加载中</span>
+          </div>
+          <div class="assist-search-row">
+            <input id="synSearch" class="syn-search" type="search" placeholder="查白话或雅词（如：月亮、思乡、喝酒、看）" autocomplete="off" aria-label="检索同义雅词" />
+            <button id="synSearchClear" class="syn-clear-btn" type="button" title="清空检索" hidden>×</button>
+          </div>
+          <p id="assistHint" class="assist-hint">点选字位自动匹配雅词，或输入白话与意象词直接检索。</p>
           <div id="selectedSlot" class="selected-slot">尚未选定字位</div>
+          <div id="assistControls" class="assist-controls">
+            <div id="scopeTabs" class="scope-tabs" role="tablist" aria-label="匹配范围与字长"></div>
+            <label class="fit-toggle" title="仅显示平仄合谱且不犯孤平、三平调的候选词">
+              <input id="fitOnlyToggle" type="checkbox" />
+              <span>只看合谱</span>
+            </label>
+          </div>
+          <div id="categoryBar" class="category-bar" hidden aria-label="意象分类导览"></div>
+          <div id="assistSummary" class="assist-summary" aria-live="polite"></div>
           <div id="suggestions" class="suggestions"></div>
-          <div class="assist-footer">带“合谱”标记的词可直接替换当前单字或词组。词义相近不等于语境必然适切，仍请自行斟酌。</div>
+          <div id="assistFooter" class="assist-footer">点击雅词可直接替换或填入当前字位；标“合谱”者逐字平仄合于当前格谱，且不犯孤平与三平调。</div>
         </aside>
       </section>
 
